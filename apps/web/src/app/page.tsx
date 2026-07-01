@@ -3,12 +3,13 @@ import {
   BarChart3,
   CalendarDays,
   Clapperboard,
+  Clock3,
   Database,
-  Download,
   ExternalLink,
   Film,
-  Play,
+  Filter,
   Search,
+  ShieldCheck,
   Star,
 } from "lucide-react";
 
@@ -28,6 +29,17 @@ type HomeProps = {
     view?: string;
   }>;
 };
+
+const sourceOptions = [
+  { value: "scrape-center", label: "Scrape Center", href: "/" },
+  { value: "atmovies", label: "@movies", href: "/?source=atmovies&view=new" },
+];
+
+const atMoviesViews: Array<{ value: AtMoviesView; label: string }> = [
+  { value: "new", label: "本周新片" },
+  { value: "now", label: "本期首輪" },
+  { value: "next", label: "近期上映" },
+];
 
 function getSafePage(value?: string) {
   const page = Number(value ?? "1");
@@ -57,7 +69,7 @@ async function loadMovies({
 
     return {
       source: safeSource,
-      sourceLabel: safeSource === "atmovies" ? "@movies 開眼電影網" : "Scrape Center",
+      sourceLabel: safeSource === "atmovies" ? "@movies 開眼電影" : "Scrape Center",
       sourceUrl:
         safeSource === "atmovies"
           ? "https://www.atmovies.com.tw/movie/new/"
@@ -110,8 +122,7 @@ function pageHref({
 }
 
 function categoryHref(category: string) {
-  const params = new URLSearchParams({ category });
-  return `/?${params.toString()}`;
+  return `/?${new URLSearchParams({ category }).toString()}`;
 }
 
 function atMoviesHref(view: AtMoviesView) {
@@ -125,7 +136,15 @@ function getVisiblePages(currentPage: number, totalPages: number) {
 }
 
 function getMovieMeta(movie: MovieItem) {
-  return [movie.region, movie.duration, movie.theaters].filter(Boolean).join(" · ");
+  return [movie.region, movie.duration, movie.theaters].filter(Boolean).join(" / ");
+}
+
+function getModeLabel(source: string, view?: AtMoviesView, category?: string) {
+  if (source === "atmovies") {
+    return atMoviesViews.find((item) => item.value === view)?.label ?? "本周新片";
+  }
+
+  return category ?? "全部類別";
 }
 
 export default async function Home({ searchParams }: HomeProps) {
@@ -147,371 +166,512 @@ export default async function Home({ searchParams }: HomeProps) {
     minute: "2-digit",
     second: "2-digit",
   }).format(new Date(data.fetchedAt));
+  const modeLabel = getModeLabel(source, data.atmoviesView, activeCategory);
+  const apiHref = `/api/movies?source=${data.source}&page=${data.page}${
+    data.source === "atmovies" ? `&view=${data.atmoviesView}` : ""
+  }${activeCategory ? `&category=${encodeURIComponent(activeCategory)}` : ""}`;
 
   return (
-    <main className="min-h-screen bg-background text-foreground">
-      <div className="grid min-h-screen lg:grid-cols-[260px_minmax(0,1fr)]">
-        <aside className="border-r bg-slate-950 px-5 py-6 text-white">
+    <main className="min-h-screen bg-slate-50 text-slate-950">
+      <div className="grid min-h-screen lg:grid-cols-[248px_minmax(0,1fr)]">
+        {/* Sidebar */}
+        <aside className="flex flex-col border-r border-slate-200/60 bg-slate-950 px-5 py-6 text-white">
           <div className="flex items-center gap-3">
-            <div className="flex size-11 items-center justify-center rounded-md bg-amber-400 text-slate-950">
+            <div className="flex size-11 items-center justify-center rounded-lg bg-gradient-to-br from-amber-300 to-amber-500 text-slate-950 shadow-lg shadow-amber-500/20">
               <Clapperboard className="size-6" />
             </div>
             <div>
-              <p className="font-semibold">Scrape Movie</p>
-              <p className="text-sm text-slate-400">crawler studio</p>
+              <p className="font-semibold tracking-tight">Scrape Movie</p>
+              <p className="text-xs text-slate-400">資料收集工作台</p>
             </div>
           </div>
 
-          <nav className="mt-10 grid gap-2">
-            {[
-              ["Dashboard", Film],
-              ["Movie DB", Database],
-              ["Schedule", CalendarDays],
-              ["Reports", BarChart3],
-            ].map(([label, Icon]) => (
-              <a
-                className="flex items-center gap-3 rounded-md px-3 py-3 text-sm font-medium text-slate-300 transition first:bg-slate-800 first:text-white hover:bg-slate-800 hover:text-white"
-                href="#"
-                key={label as string}
-              >
-                <Icon className="size-4" />
-                {label as string}
-              </a>
-            ))}
-          </nav>
+          <div className="mt-8 flex-1">
+            <p className="mb-2 px-3 text-[10px] font-semibold uppercase tracking-widest text-slate-500">
+              導覽
+            </p>
+            <nav className="grid gap-0.5">
+              {[
+                ["儀表板", Film],
+                ["電影資料", Database],
+                ["上映時程", CalendarDays],
+                ["來源報表", BarChart3],
+              ].map(([label, Icon], index) => (
+                <a
+                  className={`flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium transition-colors ${
+                    index === 0
+                      ? "bg-slate-800 text-white"
+                      : "text-slate-400 hover:bg-slate-800/50 hover:text-slate-200"
+                  }`}
+                  href={index === 0 ? "/" : "#"}
+                  key={label as string}
+                >
+                  <Icon className="size-4" />
+                  {label as string}
+                </a>
+              ))}
+            </nav>
+          </div>
+
+          <div className="mt-auto rounded-lg border border-white/10 bg-white/5 px-4 py-3">
+            <p className="text-xs font-medium text-slate-400">資料更新頻率</p>
+            <p className="mt-0.5 text-sm text-slate-200">每次請求即時查詢</p>
+          </div>
         </aside>
 
+        {/* Main Content */}
         <section className="px-5 py-6 sm:px-8">
           <header className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
             <div>
-              <p className="text-sm font-semibold uppercase text-muted-foreground">
+              <p className="text-sm font-semibold uppercase tracking-wide text-slate-500">
                 Movie scraping dashboard
               </p>
-              <h1 className="mt-1 text-3xl font-bold tracking-normal sm:text-4xl">
+              <h1 className="mt-1 text-3xl font-bold tracking-tight sm:text-4xl">
                 電影資料收集工作台
               </h1>
             </div>
 
-            <label className="flex h-11 w-full items-center gap-2 rounded-md border bg-card px-3 md:max-w-sm">
-              <Search className="size-4 text-muted-foreground" />
+            <div className="relative w-full md:max-w-sm">
+              <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
               <input
-                className="w-full bg-transparent text-sm outline-none placeholder:text-muted-foreground"
-                placeholder="搜尋電影、來源或分類"
+                className="h-11 w-full rounded-lg border bg-white pl-10 pr-20 text-sm outline-none transition placeholder:text-slate-400 focus:border-amber-400 focus:ring-2 focus:ring-amber-400/20"
+                placeholder="搜尋電影..."
               />
-            </label>
+              <kbd className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 inline-flex h-5 items-center gap-0.5 rounded border bg-slate-100 px-1.5 font-mono text-[10px] font-medium text-slate-400">
+                Ctrl+K
+              </kbd>
+            </div>
           </header>
 
-          <section className="mt-7 overflow-hidden rounded-lg bg-slate-950 text-white">
-            <div className="grid gap-6 bg-[linear-gradient(90deg,rgba(15,23,42,.96),rgba(15,23,42,.68)),url('https://images.unsplash.com/photo-1440404653325-ab127d49abc1?auto=format&fit=crop&w=1800&q=80')] bg-cover bg-center p-7 md:grid-cols-[1fr_320px] md:p-9">
+          {/* Hero Banner */}
+          <section className="relative mt-7 overflow-hidden rounded-xl bg-slate-950">
+            <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,rgba(251,191,36,0.12),transparent_50%)]" />
+            <div className="absolute -right-20 -top-20 hidden size-64 rounded-full bg-amber-400/5 blur-3xl lg:block" />
+            <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-amber-400/30 to-transparent" />
+
+            <div className="relative grid gap-6 p-7 md:grid-cols-[1fr_320px] md:p-9">
               <div className="self-end">
-                <Badge className="bg-amber-400 text-slate-950 hover:bg-amber-400">
+                <Badge className="border-0 bg-amber-400/90 text-slate-950 hover:bg-amber-400 shadow-sm">
+                  <ExternalLink className="mr-1.5 size-3" />
                   來源：{data.sourceLabel}
                 </Badge>
-                <h2 className="mt-5 max-w-3xl text-4xl font-bold tracking-normal sm:text-5xl">
-                  即時查詢電影清單，保留來源與合規邊界。
+                <h2 className="mt-5 max-w-3xl text-3xl font-bold leading-tight tracking-tight sm:text-4xl lg:text-5xl">
+                  查詢電影清單，
+                  <br className="hidden sm:block" />
+                  保留來源與合規邊界。
                 </h2>
-                <p className="mt-4 max-w-2xl text-base leading-7 text-slate-200">
-                  目前顯示第 {data.page} / {totalPages} 頁
-                  {activeCategory ? `，分類：${activeCategory}` : ""}，資料來源為 {data.sourceUrl}。
+                <p className="mt-4 max-w-2xl text-sm leading-7 text-slate-400">
+                  目前顯示第 {data.page} / {totalPages} 頁，模式為 {modeLabel}，資料來源連回{" "}
+                  <a
+                    className="text-amber-400 underline-offset-2 hover:underline"
+                    href={data.sourceUrl}
+                    rel="noreferrer"
+                    target="_blank"
+                  >
+                    {data.sourceUrl}
+                  </a>
                 </p>
-                <div className="mt-7 flex flex-wrap gap-3">
-                  <Button className="bg-amber-400 text-slate-950 hover:bg-amber-300">
-                    <Play className="mr-2 size-4" />
-                    開始查詢
-                  </Button>
-                  <Button asChild variant="secondary">
+                <div className="mt-6 flex flex-wrap gap-3">
+                  <Button
+                    asChild
+                    className="bg-amber-400 text-slate-950 shadow-lg shadow-amber-400/25 hover:bg-amber-300"
+                  >
                     <a href={data.sourceUrl} rel="noreferrer" target="_blank">
                       <ExternalLink className="mr-2 size-4" />
                       開啟來源
                     </a>
                   </Button>
+                  <Button asChild variant="secondary" className="bg-white/10 text-white hover:bg-white/20">
+                    <Link href={apiHref}>
+                      <Database className="mr-2 size-4" />
+                      查看 API
+                    </Link>
+                  </Button>
                 </div>
               </div>
 
-              <div className="grid self-end overflow-hidden rounded-md border border-white/15 bg-white/10">
+              <div className="grid self-end overflow-hidden rounded-lg border border-white/10 bg-white/5 backdrop-blur-sm">
                 {[
-                  [data.movies.length.toString(), "本頁筆數"],
-                  [data.total.toString(), activeCategory ? "篩選結果" : "來源筆數"],
-                  [lastUpdated, "更新時間"],
-                ].map(([value, label]) => (
-                  <div className="border-b border-white/10 p-5 last:border-b-0" key={label}>
-                    <p className="text-3xl font-bold">{value}</p>
-                    <p className="mt-1 text-sm text-slate-200">{label}</p>
+                  [data.movies.length.toString(), "本頁筆數", Database] as const,
+                  [data.total.toString(), activeCategory ? "篩選後總數" : "來源總數", Film] as const,
+                  [lastUpdated, "最後更新", Clock3] as const,
+                ].map(([value, label, Icon]) => (
+                  <div
+                    className="flex items-center gap-4 border-b border-white/10 p-5 last:border-b-0"
+                    key={label}
+                  >
+                    <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-white/10">
+                      <Icon className="size-5 text-amber-400" />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-2xl font-bold leading-none">{value}</p>
+                      <p className="mt-1 text-xs text-slate-400">{label}</p>
+                    </div>
                   </div>
                 ))}
               </div>
             </div>
           </section>
 
-          {"error" in data ? (
-            <Card className="mt-7 border-destructive/40">
-              <CardHeader>
-                <CardTitle>來源讀取失敗</CardTitle>
-              </CardHeader>
-              <CardContent className="text-sm text-muted-foreground">{data.error}</CardContent>
+          {data.notice ? (
+            <Card className="mt-7 border-amber-200 bg-amber-50/70">
+              <CardContent className="flex gap-3 p-4 text-sm leading-6 text-amber-800">
+                <ShieldCheck className="mt-0.5 size-5 shrink-0 text-amber-500" />
+                <span>{data.notice}</span>
+              </CardContent>
             </Card>
           ) : null}
 
-          {data.notice ? (
-            <Card className="mt-7 border-amber-300 bg-amber-50">
-              <CardContent className="p-4 text-sm text-amber-900">{data.notice}</CardContent>
+          {"error" in data ? (
+            <Card className="mt-7 border-red-200 bg-red-50/70">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-lg text-red-800">資料讀取暫時失敗</CardTitle>
+              </CardHeader>
+              <CardContent className="text-sm text-red-600">{data.error}</CardContent>
             </Card>
           ) : null}
 
           <section className="mt-7 grid gap-6 xl:grid-cols-[1fr_340px]">
             <div>
+              {/* Source Selector */}
+              <Card className="mb-6 border-0 bg-white shadow-sm">
+                <CardContent className="grid gap-5 p-5">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="flex size-9 items-center justify-center rounded-lg bg-slate-100">
+                        <Database className="size-4 text-slate-500" />
+                      </div>
+                      <div>
+                        <p className="text-xs font-medium text-slate-500">資料來源</p>
+                        <p className="text-sm font-semibold">{data.sourceLabel}</p>
+                      </div>
+                    </div>
+                    <div className="flex gap-1 rounded-lg bg-slate-100 p-1">
+                      {sourceOptions.map((option) => (
+                        <Button
+                          asChild
+                          key={option.value}
+                          variant={source === option.value ? "default" : "ghost"}
+                          size="sm"
+                          className={
+                            source === option.value
+                              ? "shadow-sm"
+                              : "text-slate-500 hover:text-slate-900"
+                          }
+                        >
+                          <Link href={option.href}>{option.label}</Link>
+                        </Button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {source === "atmovies" ? (
+                    <div className="flex flex-wrap gap-1 rounded-lg bg-slate-50 p-1">
+                      {atMoviesViews.map((item) => (
+                        <Button
+                          asChild
+                          key={item.value}
+                          variant={data.atmoviesView === item.value ? "default" : "ghost"}
+                          size="sm"
+                          className={
+                            data.atmoviesView === item.value
+                              ? "shadow-sm"
+                              : "text-slate-500 hover:text-slate-900"
+                          }
+                        >
+                          <Link href={atMoviesHref(item.value)}>{item.label}</Link>
+                        </Button>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="flex flex-wrap gap-1 rounded-lg bg-slate-50 p-1">
+                      <Button
+                        asChild
+                        variant={activeCategory ? "ghost" : "default"}
+                        size="sm"
+                        className={
+                          activeCategory ? "text-slate-500 hover:text-slate-900" : "shadow-sm"
+                        }
+                      >
+                        <Link href="/">全部</Link>
+                      </Button>
+                      {data.categories.map((category) => (
+                        <Button
+                          asChild
+                          key={category}
+                          variant={category === activeCategory ? "default" : "ghost"}
+                          size="sm"
+                          className={
+                            category === activeCategory
+                              ? "shadow-sm"
+                              : "text-slate-500 hover:text-slate-900"
+                          }
+                        >
+                          <Link href={categoryHref(category)}>{category}</Link>
+                        </Button>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Movie List Header */}
               <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div>
-                  <h2 className="text-2xl font-semibold">電影清單</h2>
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    第 {data.page} 頁，每頁 {data.pageSize} 筆
+                  <h2 className="text-2xl font-semibold tracking-tight">電影清單</h2>
+                  <p className="mt-1 text-sm text-slate-500">
+                    每頁最多顯示 {data.pageSize} 筆，點擊卡片按鈕可回到原始頁面。
                   </p>
                 </div>
-                <Button variant="outline" size="icon" aria-label="Refresh">
-                  <BarChart3 className="size-4" />
-                </Button>
+                <Badge variant="secondary" className="w-fit gap-1.5 px-3 py-1.5 text-xs font-medium">
+                  <Filter className="size-3" />
+                  {modeLabel}
+                </Badge>
               </div>
 
-              <div className="mb-5 flex flex-wrap items-center gap-2">
-                <Button asChild variant={source === "scrape-center" ? "default" : "outline"} size="sm">
-                  <Link href="/">Scrape Center</Link>
-                </Button>
-                <Button asChild variant={source === "atmovies" ? "default" : "outline"} size="sm">
-                  <Link href="/?source=atmovies&view=new">@movies</Link>
-                </Button>
-              </div>
-
-              {source === "atmovies" ? (
-                <div className="mb-5 flex flex-wrap items-center gap-2">
-                  {[
-                    ["new", "本周新片"],
-                    ["now", "本期首輪"],
-                    ["next", "近期上映"],
-                  ].map(([view, label]) => (
-                    <Button
-                      asChild
-                      key={view}
-                      variant={data.atmoviesView === view ? "default" : "outline"}
-                      size="sm"
+              {/* Movie Cards */}
+              {data.movies.length > 0 ? (
+                <div className="grid gap-4 sm:grid-cols-2 2xl:grid-cols-4">
+                  {data.movies.map((movie) => (
+                    <Card
+                      className="group overflow-hidden border-0 bg-white shadow-md shadow-slate-200/50 transition-all duration-300 ease-out hover:-translate-y-1.5 hover:shadow-xl hover:shadow-slate-200/70"
+                      key={`${movie.source}-${movie.id}`}
                     >
-                      <Link href={atMoviesHref(view as AtMoviesView)}>{label}</Link>
-                    </Button>
-                  ))}
-                </div>
-              ) : (
-                <div className="mb-5 flex flex-wrap items-center gap-2">
-                  <Button asChild variant={activeCategory ? "outline" : "default"} size="sm">
-                    <Link href="/">全部</Link>
-                  </Button>
-                  {data.categories.map((category) => (
-                    <Button
-                      asChild
-                      key={category}
-                      variant={category === activeCategory ? "default" : "outline"}
-                      size="sm"
-                    >
-                      <Link href={categoryHref(category)}>{category}</Link>
-                    </Button>
-                  ))}
-                </div>
-              )}
-
-              <div className="grid gap-4 sm:grid-cols-2 2xl:grid-cols-4">
-                {data.movies.map((movie) => (
-                  <Card className="overflow-hidden" key={`${movie.source}-${movie.id}`}>
-                    <div className="relative aspect-[4/5] bg-slate-200">
-                      {movie.cover ? (
-                        <img
-                          alt={`${movie.title} poster`}
-                          className="size-full object-cover"
-                          src={movie.cover}
-                        />
-                      ) : (
-                        <div className="flex size-full items-center justify-center bg-slate-900 text-center text-sm font-semibold text-white">
-                          {movie.sourceLabel}
-                        </div>
-                      )}
-                      <Badge className="absolute left-3 top-3 bg-white/90 text-slate-950 hover:bg-white/90">
-                        {movie.source === "atmovies" ? "@movies" : `#${movie.id}`}
-                      </Badge>
-                    </div>
-                    <CardHeader>
-                      <CardTitle className="line-clamp-2 text-base leading-5">
-                        {movie.title}
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="mb-4 flex flex-wrap gap-2">
-                        {movie.categories.map((category) =>
-                          movie.source === "scrape-center" ? (
-                            <Link href={categoryHref(category)} key={`${movie.id}-${category}`}>
+                      <div className="relative aspect-[4/5] overflow-hidden bg-slate-100">
+                        {movie.cover ? (
+                          <img
+                            alt={`${movie.title} poster`}
+                            className="size-full object-cover transition-all duration-500 ease-out group-hover:scale-110 group-hover:-translate-y-1 group-hover:shadow-2xl"
+                            loading="lazy"
+                            src={movie.cover}
+                          />
+                        ) : (
+                          <div className="flex size-full flex-col items-center justify-center gap-2 bg-gradient-to-br from-slate-800 to-slate-900 px-4 text-center">
+                            <Film className="size-8 text-slate-600" />
+                            <span className="text-xs font-medium text-slate-400">
+                              {movie.sourceLabel}
+                            </span>
+                          </div>
+                        )}
+                        <Badge className="absolute left-3 top-3 border-0 bg-white/90 text-slate-950 shadow-sm backdrop-blur-sm hover:bg-white">
+                          {movie.source === "atmovies" ? "@movies" : `#${movie.id}`}
+                        </Badge>
+                      </div>
+                      <CardHeader className="pb-2">
+                        <CardTitle className="line-clamp-2 min-h-[2.5rem] text-base font-semibold leading-snug tracking-tight transition-colors group-hover:text-amber-600">
+                          {movie.title}
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent className="pb-5">
+                        <div className="mb-3 flex flex-wrap gap-1.5">
+                          {movie.categories.map((category) =>
+                            movie.source === "scrape-center" ? (
+                              <Link href={categoryHref(category)} key={`${movie.id}-${category}`}>
+                                <Badge
+                                  className={`transition-colors hover:bg-slate-200 ${
+                                    category === activeCategory
+                                      ? "bg-slate-950 text-white hover:bg-slate-800"
+                                      : "text-slate-600"
+                                  }`}
+                                  variant={category === activeCategory ? "default" : "secondary"}
+                                >
+                                  {category}
+                                </Badge>
+                              </Link>
+                            ) : (
                               <Badge
-                                className={
-                                  category === activeCategory
-                                    ? "bg-primary text-primary-foreground"
-                                    : ""
-                                }
-                                variant={category === activeCategory ? "default" : "secondary"}
+                                className="text-slate-600"
+                                variant="secondary"
+                                key={`${movie.id}-${category}`}
                               >
                                 {category}
                               </Badge>
-                            </Link>
-                          ) : (
-                            <Badge variant="secondary" key={`${movie.id}-${category}`}>
-                              {category}
-                            </Badge>
-                          ),
-                        )}
-                      </div>
-                      <div className="flex items-center justify-between gap-3">
-                        <p className="min-w-0 text-sm text-muted-foreground">
-                          {getMovieMeta(movie) || "欄位未提供"}
-                        </p>
-                        {movie.score ? (
-                          <span className="flex items-center gap-1 text-sm font-semibold text-amber-700">
-                            <Star className="size-4" />
-                            {movie.score}
-                          </span>
-                        ) : null}
-                      </div>
-                      <p className="mt-2 text-sm text-muted-foreground">
-                        {movie.releaseDate ? `${movie.releaseDate} 上映` : "上映日期未提供"}
-                      </p>
-                      <Button asChild className="mt-4 w-full" variant="outline" size="sm">
-                        <a href={movie.detailUrl} rel="noreferrer" target="_blank">
-                          <ExternalLink className="mr-2 size-4" />
-                          原始頁面
-                        </a>
-                      </Button>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
+                            ),
+                          )}
+                        </div>
+                        <div className="flex items-start justify-between gap-3">
+                          <p className="min-w-0 text-xs leading-5 text-slate-500">
+                            {getMovieMeta(movie) || "尚無補充資訊"}
+                          </p>
+                          {movie.score ? (
+                            <span className="flex shrink-0 items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-700">
+                              <Star className="size-3 fill-amber-500 text-amber-500" />
+                              {movie.score}
+                            </span>
+                          ) : null}
+                        </div>
+                        <div className="mt-2 flex items-center gap-1.5 text-xs text-slate-400">
+                          <Clock3 className="size-3" />
+                          {movie.releaseDate ? `${movie.releaseDate} 上映` : "上映日期尚未提供"}
+                        </div>
+                        <Button asChild className="mt-4 w-full" variant="outline" size="sm">
+                          <a href={movie.detailUrl} rel="noreferrer" target="_blank">
+                            <ExternalLink className="mr-2 size-4" />
+                            原始頁面
+                          </a>
+                        </Button>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              ) : (
+                <Card className="border-0 bg-white shadow-sm">
+                  <CardContent className="flex flex-col items-center justify-center gap-3 p-12 text-center">
+                    <div className="flex size-16 items-center justify-center rounded-full bg-slate-100">
+                      <Database className="size-8 text-slate-400" />
+                    </div>
+                    <h3 className="text-lg font-semibold">目前沒有可顯示的電影資料</h3>
+                    <p className="max-w-md text-sm leading-6 text-slate-500">
+                      來源可能暫時無法連線，或此頁沒有資料。可以切換來源、類別或頁碼再試一次。
+                    </p>
+                  </CardContent>
+                </Card>
+              )}
 
-              <nav
-                aria-label="Movies pagination"
-                className="mt-6 flex flex-wrap items-center justify-center gap-2"
-              >
-                <Button asChild variant="outline">
-                  <Link
-                    aria-disabled={data.page <= 1}
-                    className={data.page <= 1 ? "pointer-events-none opacity-45" : ""}
-                    href={pageHref({
-                      page: Math.max(1, data.page - 1),
-                      category: activeCategory,
-                      source,
-                      view: data.atmoviesView,
-                    })}
-                  >
-                    上一頁
-                  </Link>
-                </Button>
-
-                {visiblePages[0] > 1 ? (
-                  <>
-                    <Button asChild variant={data.page === 1 ? "default" : "outline"} size="icon">
-                      <Link
-                        href={pageHref({
-                          page: 1,
-                          category: activeCategory,
-                          source,
-                          view: data.atmoviesView,
-                        })}
-                      >
-                        1
-                      </Link>
-                    </Button>
-                    <span className="px-1 text-sm text-muted-foreground">...</span>
-                  </>
-                ) : null}
-
-                {visiblePages.map((page) => (
-                  <Button
-                    asChild
-                    key={page}
-                    variant={page === data.page ? "default" : "outline"}
-                    size="icon"
-                  >
+              {/* Pagination */}
+              <nav aria-label="Movies pagination" className="mt-8">
+                <p className="mb-4 text-center text-sm text-slate-500">
+                  第 <span className="font-semibold text-slate-900">{data.page}</span> 頁，共{" "}
+                  <span className="font-semibold text-slate-900">{totalPages}</span> 頁
+                </p>
+                <div className="flex flex-wrap items-center justify-center gap-1.5">
+                  <Button asChild variant="outline" size="sm">
                     <Link
+                      aria-disabled={data.page <= 1}
+                      className={data.page <= 1 ? "pointer-events-none opacity-40" : ""}
                       href={pageHref({
-                        page,
+                        page: Math.max(1, data.page - 1),
                         category: activeCategory,
                         source,
                         view: data.atmoviesView,
                       })}
                     >
-                      {page}
+                      <span className="hidden sm:inline">上一頁</span>
+                      <span className="sm:hidden">←</span>
                     </Link>
                   </Button>
-                ))}
 
-                {visiblePages[visiblePages.length - 1] < totalPages ? (
-                  <>
-                    <span className="px-1 text-sm text-muted-foreground">...</span>
+                  {visiblePages[0] > 1 ? (
+                    <>
+                      <Button
+                        asChild
+                        variant={data.page === 1 ? "default" : "outline"}
+                        size="icon"
+                        className="size-9"
+                      >
+                        <Link
+                          href={pageHref({
+                            page: 1,
+                            category: activeCategory,
+                            source,
+                            view: data.atmoviesView,
+                          })}
+                        >
+                          1
+                        </Link>
+                      </Button>
+                      <span className="px-0.5 text-sm text-slate-400">...</span>
+                    </>
+                  ) : null}
+
+                  {visiblePages.map((page) => (
                     <Button
                       asChild
-                      variant={data.page === totalPages ? "default" : "outline"}
+                      key={page}
+                      variant={page === data.page ? "default" : "outline"}
                       size="icon"
+                      className="size-9"
                     >
                       <Link
                         href={pageHref({
-                          page: totalPages,
+                          page,
                           category: activeCategory,
                           source,
                           view: data.atmoviesView,
                         })}
                       >
-                        {totalPages}
+                        {page}
                       </Link>
                     </Button>
-                  </>
-                ) : null}
+                  ))}
 
-                <Button asChild variant="outline">
-                  <Link
-                    aria-disabled={data.page >= totalPages}
-                    className={data.page >= totalPages ? "pointer-events-none opacity-45" : ""}
-                    href={pageHref({
-                      page: Math.min(totalPages, data.page + 1),
-                      category: activeCategory,
-                      source,
-                      view: data.atmoviesView,
-                    })}
-                  >
-                    下一頁
-                  </Link>
-                </Button>
+                  {visiblePages[visiblePages.length - 1] < totalPages ? (
+                    <>
+                      <span className="px-0.5 text-sm text-slate-400">...</span>
+                      <Button
+                        asChild
+                        variant={data.page === totalPages ? "default" : "outline"}
+                        size="icon"
+                        className="size-9"
+                      >
+                        <Link
+                          href={pageHref({
+                            page: totalPages,
+                            category: activeCategory,
+                            source,
+                            view: data.atmoviesView,
+                          })}
+                        >
+                          {totalPages}
+                        </Link>
+                      </Button>
+                    </>
+                  ) : null}
+
+                  <Button asChild variant="outline" size="sm">
+                    <Link
+                      aria-disabled={data.page >= totalPages}
+                      className={data.page >= totalPages ? "pointer-events-none opacity-40" : ""}
+                      href={pageHref({
+                        page: Math.min(totalPages, data.page + 1),
+                        category: activeCategory,
+                        source,
+                        view: data.atmoviesView,
+                      })}
+                    >
+                      <span className="hidden sm:inline">下一頁</span>
+                      <span className="sm:hidden">→</span>
+                    </Link>
+                  </Button>
+                </div>
               </nav>
             </div>
 
-            <Card>
-              <CardHeader>
-                <CardTitle>查詢任務</CardTitle>
+            {/* Right Sidebar - Task Info */}
+            <Card className="sticky top-6 h-fit border-0 bg-white shadow-sm">
+              <CardHeader className="pb-3">
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <div className="flex size-7 items-center justify-center rounded-md bg-slate-100">
+                    <BarChart3 className="size-3.5 text-slate-500" />
+                  </div>
+                  查詢任務
+                </CardTitle>
               </CardHeader>
-              <CardContent className="grid gap-3">
+              <CardContent className="grid gap-2">
                 {[
-                  ["資料來源", data.sourceLabel, "啟用"],
-                  ["目前頁碼", `Page ${data.page}`, "完成"],
-                  ["資料模式", data.atmoviesView ?? activeCategory ?? "全部", "套用"],
-                  [
-                    "API",
-                    `/api/movies?source=${data.source}&page=${data.page}${
-                      data.source === "atmovies" ? `&view=${data.atmoviesView}` : ""
-                    }${activeCategory ? `&category=${activeCategory}` : ""}`,
-                    "可用",
-                  ],
-                ].map(([label, value, state]) => (
+                  ["資料來源", data.sourceLabel],
+                  ["目前頁碼", `第 ${data.page} 頁`],
+                  ["查詢模式", modeLabel],
+                  ["最後更新", lastUpdated],
+                ].map(([label, value]) => (
                   <div
-                    className="flex items-center justify-between gap-4 rounded-md bg-muted p-4"
+                    className="flex items-center justify-between gap-4 rounded-lg border border-slate-100 p-3"
                     key={label}
                   >
-                    <div className="min-w-0">
-                      <p className="font-semibold">{label}</p>
-                      <p className="mt-1 truncate text-sm text-muted-foreground">{value}</p>
-                    </div>
-                    <Badge>{state}</Badge>
+                    <p className="text-xs font-medium text-slate-500">{label}</p>
+                    <p className="truncate text-sm font-semibold">{value}</p>
                   </div>
                 ))}
+
+                <div className="mt-2 rounded-lg border bg-slate-50 p-3">
+                  <div className="mb-1.5 flex items-center gap-1.5 text-xs font-medium text-slate-500">
+                    <Clock3 className="size-3" />
+                    API 路徑
+                  </div>
+                  <p className="break-all font-mono text-xs leading-relaxed text-slate-500">
+                    {apiHref}
+                  </p>
+                </div>
               </CardContent>
             </Card>
           </section>
