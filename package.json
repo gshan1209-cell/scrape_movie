@@ -1,0 +1,21 @@
+{
+  "private": true,
+  "workspaces": [
+    "apps/*"
+  ],
+  "scripts": {
+    "dev": "npm run dev -w apps/web",
+    "build": "npm run build -w apps/web",
+    "lint": "npm run lint -w apps/web",
+    "typecheck": "npm run typecheck -w apps/web"
+  },
+  "overrides": {
+    "@types/react": "^19.2.17",
+    "@types/react-dom": "^19.2.3"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "@types/react": "^19.2.17",
+    "@types/react-dom": "^19.2.3"
+  }
+}
