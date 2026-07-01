@@ -31,8 +31,8 @@ type HomeProps = {
 };
 
 const sourceOptions = [
-  { value: "scrape-center", label: "Scrape Center", href: "/" },
-  { value: "atmovies", label: "@movies", href: "/?source=atmovies&view=new" },
+  { value: "atmovies", label: "@movies", href: "/" },
+  { value: "scrape-center", label: "Scrape Center", href: "/?source=scrape-center" },
 ];
 
 const atMoviesViews: Array<{ value: AtMoviesView; label: string }> = [
@@ -101,11 +101,11 @@ function pageHref({
 }) {
   const params = new URLSearchParams();
 
-  if (source !== "scrape-center") {
+  if (source !== "atmovies") {
     params.set("source", source);
   }
 
-  if (view && source === "atmovies") {
+  if (view && source === "atmovies" && view !== "new") {
     params.set("view", view);
   }
 

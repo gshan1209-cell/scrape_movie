@@ -3,7 +3,7 @@ import { getAtMovies, getSafeAtMoviesView } from "@/lib/scrapers/atmovies";
 import type { MovieSource } from "@/lib/scrapers/types";
 
 export function getSafeMovieSource(value?: string | null): MovieSource {
-  return value === "atmovies" ? "atmovies" : "scrape-center";
+  return value === "scrape-center" ? "scrape-center" : "atmovies";
 }
 
 export async function getMovies({
