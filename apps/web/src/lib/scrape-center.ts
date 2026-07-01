@@ -1,56 +1,17 @@
 import https from "node:https";
 
+import {
+  type MovieItem,
+  type MovieResult,
+  PAGE_SIZE,
+  decodeHtml,
+  getMatch,
+  paginateMovies,
+  textFromHtml,
+  uniqueSortedCategories,
+} from "@/lib/scrapers/types";
+
 const SOURCE_ORIGIN = "https://ssr1.scrape.center";
-const PAGE_SIZE = 10;
-
-export type ScrapeCenterMovie = {
-  id: string;
-  title: string;
-  cover: string;
-  categories: string[];
-  region: string;
-  duration: string;
-  releaseDate: string;
-  score: string;
-  detailUrl: string;
-};
-
-export type ScrapeCenterResult = {
-  source: string;
-  page: number;
-  total: number;
-  movies: ScrapeCenterMovie[];
-  categories: string[];
-  filteredBy?: string;
-  fetchedAt: string;
-};
-
-function decodeHtml(value: string) {
-  return value
-    .replaceAll("&amp;", "&")
-    .replaceAll("&lt;", "<")
-    .replaceAll("&gt;", ">")
-    .replaceAll("&quot;", '"')
-    .replaceAll("&#39;", "'")
-    .replaceAll("&#x27;", "'")
-    .replaceAll("&nbsp;", " ");
-}
-
-function textFromHtml(value = "") {
-  return decodeHtml(value.replace(/<[^>]+>/g, " "))
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
-function getMatch(value: string, pattern: RegExp) {
-  return value.match(pattern)?.[1]?.trim() ?? "";
-}
-
-function uniqueSortedCategories(movies: ScrapeCenterMovie[]) {
-  return Array.from(new Set(movies.flatMap((movie) => movie.categories))).sort((a, b) =>
-    a.localeCompare(b, "zh-Hant"),
-  );
-}
 
 function getSourcePath(page: number) {
   return page <= 1 ? "/" : `/page/${page}`;
@@ -99,7 +60,7 @@ function fetchHtml(page: number) {
 async function fetchHtmlWithRetry(page: number) {
   try {
     return await fetchHtml(page);
-  } catch (error) {
+  } catch {
     await new Promise((resolve) => setTimeout(resolve, 350));
     return fetchHtml(page);
   }
@@ -113,7 +74,7 @@ async function fetchOptionalHtml(page: number) {
   }
 }
 
-function parseMovies(html: string) {
+function parseMovies(html: string): MovieItem[] {
   return html
     .split(/<div[^>]+class="el-card item m-t is-hover-shadow"[^>]*>/)
     .slice(1)
@@ -142,6 +103,8 @@ function parseMovies(html: string) {
         releaseDate,
         score,
         detailUrl: `${SOURCE_ORIGIN}/detail/${id}`,
+        source: "scrape-center" as const,
+        sourceLabel: "Scrape Center",
       };
     })
     .filter((movie) => movie.id && movie.title);
@@ -170,19 +133,21 @@ async function getAllScrapeCenterMovies() {
   };
 }
 
-export async function getScrapeCenterMovies(page = 1, category?: string): Promise<ScrapeCenterResult> {
+export async function getScrapeCenterMovies(page = 1, category?: string): Promise<MovieResult> {
   const safePage = Math.max(1, page);
 
   if (category) {
     const allData = await getAllScrapeCenterMovies();
     const filteredMovies = allData.movies.filter((movie) => movie.categories.includes(category));
-    const start = (safePage - 1) * PAGE_SIZE;
 
     return {
-      source: SOURCE_ORIGIN,
+      source: "scrape-center",
+      sourceLabel: "Scrape Center",
+      sourceUrl: SOURCE_ORIGIN,
       page: safePage,
+      pageSize: PAGE_SIZE,
       total: filteredMovies.length,
-      movies: filteredMovies.slice(start, start + PAGE_SIZE),
+      movies: paginateMovies(filteredMovies, safePage),
       categories: allData.categories,
       filteredBy: category,
       fetchedAt: new Date().toISOString(),
@@ -194,8 +159,11 @@ export async function getScrapeCenterMovies(page = 1, category?: string): Promis
   const total = Number(getMatch(html, /共\s*(\d+)\s*条/)) || 0;
 
   return {
-    source: SOURCE_ORIGIN,
+    source: "scrape-center",
+    sourceLabel: "Scrape Center",
+    sourceUrl: SOURCE_ORIGIN,
     page: safePage,
+    pageSize: PAGE_SIZE,
     total,
     movies,
     categories: uniqueSortedCategories(movies),
