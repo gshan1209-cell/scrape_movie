@@ -5,7 +5,6 @@ import {
   type MovieItem,
   type MovieResult,
   PAGE_SIZE,
-  decodeHtml,
   getMatch,
   paginateMovies,
   textFromHtml,
@@ -103,33 +102,6 @@ function parseNewMovies(html: string): MovieItem[] {
         releaseDate: runtime.releaseDate,
         score: score === "0" ? undefined : score,
         theaters: runtime.theaters,
-        detailUrl: normalizeUrl(detailPath),
-        source: "atmovies" as const,
-        sourceLabel: "@movies 開眼電影網",
-      };
-    })
-    .filter((movie) => movie.title && movie.detailUrl);
-}
-
-function parseCompactMovies(html: string, category: string): MovieItem[] {
-  const listBlock = getMatch(html, /<ul class="filmListPA">([\s\S]*?)<\/ul>/);
-
-  return Array.from(listBlock.matchAll(/<li>\s*[\s\S]*?<a href="([^"]+)">([\s\S]*?)<\/a>\s*<span class="runtime">([\s\S]*?)<\/span>/g))
-    .map((match) => {
-      const detailPath = match[1];
-      const title = textFromHtml(match[2]).replace(/^★/, "");
-      const runtimeText = textFromHtml(match[3]);
-      const releaseDate = getMatch(runtimeText, /([0-9]{4}\/[0-9]{1,2}\/[0-9]{1,2})/);
-      const duration = getMatch(runtimeText, /\(([0-9]+分)\)/);
-      const theaters = getMatch(runtimeText, /\(([0-9]+廳)\)/);
-
-      return {
-        id: detailPath.replaceAll("/", "") || title,
-        title,
-        categories: [category],
-        duration,
-        releaseDate,
-        theaters,
         detailUrl: normalizeUrl(detailPath),
         source: "atmovies" as const,
         sourceLabel: "@movies 開眼電影網",

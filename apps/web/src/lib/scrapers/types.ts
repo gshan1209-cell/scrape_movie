@@ -12,7 +12,6 @@ export type MovieItem = {
   releaseDate?: string;
   score?: string;
   theaters?: string;
-  summary?: string;
   detailUrl: string;
   source: MovieSource;
   sourceLabel: string;
