@@ -122,7 +122,7 @@ function pageHref({
 }
 
 function categoryHref(category: string) {
-  return `/?${new URLSearchParams({ category }).toString()}`;
+  return `/?${new URLSearchParams({ source: "scrape-center", category }).toString()}`;
 }
 
 function atMoviesHref(view: AtMoviesView) {
@@ -161,7 +161,7 @@ export default async function Home({ searchParams }: HomeProps) {
   });
   const totalPages = Math.max(1, Math.ceil(data.total / data.pageSize));
   const visiblePages = getVisiblePages(data.page, totalPages);
-  const lastUpdated = new Intl.DateTimeFormat("zh-TW", {
+  const lastUpdated = "error" in data ? "尚未取得資料" : new Intl.DateTimeFormat("zh-TW", {
     hour: "2-digit",
     minute: "2-digit",
     second: "2-digit",
@@ -215,7 +215,9 @@ export default async function Home({ searchParams }: HomeProps) {
 
           <div className="mt-auto rounded-lg border border-white/10 bg-white/5 px-4 py-3">
             <p className="text-xs font-medium text-slate-400">資料更新頻率</p>
-            <p className="mt-0.5 text-sm text-slate-200">每次請求即時查詢</p>
+            <p className="mt-0.5 text-sm text-slate-200">
+              {source === "atmovies" ? "來源查詢，最多快取 30 分鐘" : "每次請求查詢來源"}
+            </p>
           </div>
         </aside>
 
@@ -393,7 +395,7 @@ export default async function Home({ searchParams }: HomeProps) {
                           activeCategory ? "text-slate-500 hover:text-slate-900" : "shadow-sm"
                         }
                       >
-                        <Link href="/">全部</Link>
+                        <Link href="/?source=scrape-center">全部</Link>
                       </Button>
                       {data.categories.map((category) => (
                         <Button
@@ -535,10 +537,15 @@ export default async function Home({ searchParams }: HomeProps) {
                   <span className="font-semibold text-slate-900">{totalPages}</span> 頁
                 </p>
                 <div className="flex flex-wrap items-center justify-center gap-1.5">
+                  {data.page <= 1 ? (
+                    <Button disabled variant="outline" size="sm" aria-label="上一頁">
+                      <span className="hidden sm:inline">上一頁</span>
+                      <span className="sm:hidden">←</span>
+                    </Button>
+                  ) : (
                   <Button asChild variant="outline" size="sm">
                     <Link
-                      aria-disabled={data.page <= 1}
-                      className={data.page <= 1 ? "pointer-events-none opacity-40" : ""}
+                      aria-label="上一頁"
                       href={pageHref({
                         page: Math.max(1, data.page - 1),
                         category: activeCategory,
@@ -550,6 +557,7 @@ export default async function Home({ searchParams }: HomeProps) {
                       <span className="sm:hidden">←</span>
                     </Link>
                   </Button>
+                  )}
 
                   {visiblePages[0] > 1 ? (
                     <>
@@ -618,10 +626,15 @@ export default async function Home({ searchParams }: HomeProps) {
                     </>
                   ) : null}
 
+                  {data.page >= totalPages ? (
+                    <Button disabled variant="outline" size="sm" aria-label="下一頁">
+                      <span className="hidden sm:inline">下一頁</span>
+                      <span className="sm:hidden">→</span>
+                    </Button>
+                  ) : (
                   <Button asChild variant="outline" size="sm">
                     <Link
-                      aria-disabled={data.page >= totalPages}
-                      className={data.page >= totalPages ? "pointer-events-none opacity-40" : ""}
+                      aria-label="下一頁"
                       href={pageHref({
                         page: Math.min(totalPages, data.page + 1),
                         category: activeCategory,
@@ -633,6 +646,7 @@ export default async function Home({ searchParams }: HomeProps) {
                       <span className="sm:hidden">→</span>
                     </Link>
                   </Button>
+                  )}
                 </div>
               </nav>
             </div>

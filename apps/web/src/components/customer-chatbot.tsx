@@ -18,19 +18,19 @@ function getBotReply(message: string) {
   const text = message.toLowerCase();
 
   if (message.includes("分類") || message.includes("篩選") || text.includes("category")) {
-    return "🔎 可以點電影卡片上的分類標籤，也可以用清單上方的分類列喔 ✨ 網址會帶上 category 參數，例如 /?category=剧情。";
+    return "🔎 分類篩選適用於 Scrape Center，可以點卡片分類或上方分類列，例如 /?source=scrape-center&category=剧情。@movies 請切換本周新片、本期首輪或近期上映。";
   }
 
   if (message.includes("分頁") || message.includes("頁") || text.includes("page")) {
     return "📚 列表下方有上一頁、頁碼與下一頁。API 也支援 page 參數，例如 /api/movies?page=2。";
   }
 
-  if (message.includes("api") || message.includes("資料")) {
-    return "🧩 目前可用 API 是 /api/movies。可以搭配 page 和 category，例如 /api/movies?page=1&category=%E5%89%A7%E6%83%85。";
+  if (message.includes("來源") || message.includes("網站") || text.includes("source")) {
+    return "🎬 可切換 @movies 開眼電影網 https://www.atmovies.com.tw 與 Scrape Center https://ssr1.scrape.center/。預設為 @movies，資料最多快取 30 分鐘；每張卡片保留原始連結。";
   }
 
-  if (message.includes("來源") || message.includes("網站") || text.includes("source")) {
-    return "🎬 電影資料來源是 https://ssr1.scrape.center/。系統會在 Next.js server side 即時爬取並解析。";
+  if (text.includes("api") || message.includes("資料")) {
+    return "🧩 API 是 /api/movies，預設來源為 @movies。分類查詢請指定 Scrape Center，例如 /api/movies?source=scrape-center&page=1&category=%E5%89%A7%E6%83%85；@movies 可用 source=atmovies&view=now。";
   }
 
   if (message.includes("錯誤") || message.includes("失敗") || text.includes("error")) {

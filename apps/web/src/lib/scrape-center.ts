@@ -115,12 +115,15 @@ async function getAllScrapeCenterMovies() {
   const total = Number(getMatch(firstHtml, /共\s*(\d+)\s*条/)) || 0;
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
   const htmlPages = [firstHtml];
+  const failedPages: number[] = [];
 
   for (let page = 2; page <= totalPages; page += 1) {
     const html = await fetchOptionalHtml(page);
 
     if (html) {
       htmlPages.push(html);
+    } else {
+      failedPages.push(page);
     }
   }
 
@@ -130,6 +133,7 @@ async function getAllScrapeCenterMovies() {
     total,
     movies,
     categories: uniqueSortedCategories(movies),
+    failedPages,
   };
 }
 
@@ -150,6 +154,9 @@ export async function getScrapeCenterMovies(page = 1, category?: string): Promis
       movies: paginateMovies(filteredMovies, safePage),
       categories: allData.categories,
       filteredBy: category,
+      notice: allData.failedPages.length
+        ? `部分來源頁面讀取失敗（第 ${allData.failedPages.join("、")} 頁）；目前筆數與分類僅涵蓋已取得的資料。`
+        : undefined,
       fetchedAt: new Date().toISOString(),
     };
   }
