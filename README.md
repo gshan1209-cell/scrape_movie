@@ -100,3 +100,11 @@ Scrape Center 分類掃描若有部分頁失敗，API 與畫面會揭露資料�
 
 隔離合成資料的桌機／手機／鍵盤與失敗情境驗收入口見 [tests/README.md](tests/README.md)。
 通過本機驗收不代表已部署候選版，也不證明來源 TLS 或資料持久性。
+
+### Source connection security
+
+Scrape Center requests validate the upstream certificate chain and hostname.
+Certificate errors remain explicit failures: the API returns 502 and the page
+shows its existing failure state. Category scans retain the existing explicit
+partial-page notice when only a later source page fails. No insecure TLS retry,
+custom production CA, or fallback movie dataset is used.

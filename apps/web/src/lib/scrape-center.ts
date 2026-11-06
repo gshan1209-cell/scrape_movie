@@ -27,7 +27,7 @@ function fetchHtml(page: number) {
         headers: {
           "User-Agent": "scrape-movie-dashboard/1.0",
         },
-        rejectUnauthorized: false,
+        rejectUnauthorized: true,
       },
       (response) => {
         const chunks: Buffer[] = [];

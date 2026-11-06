@@ -1,5 +1,17 @@
 # Isolated movie acceptance tests
 
+`npm test` runs six real loopback TLS/API regressions: explicitly trusted fixture,
+untrusted certificate, wrong hostname, strict retries, partial-page disclosure,
+and upstream HTTP failure. The certificate/key under `fixtures/tls` are public
+synthetic localhost fixtures, not service credentials. Only the test transport
+receives the fixture CA; no trust store or production setting is changed.
+
+The security candidate pins Next.js 15.5.29 and its ESLint config, PostCSS 8.5.32,
+and supported sharp 0.35.5. The workspace root overrides are intentional: Next
+15.5 still declares an older PostCSS. The lockfile removes that stale nested copy
+and was verified with a clean `npm ci --ignore-scripts`, actual module resolution,
+and `npm audit --omit=dev`. Use Node 20.9+ (production currently uses Node 24).
+
 The browser uses the real Next.js page, API, parsers and chatbot. Only upstream
 HTTPS responses are replaced with synthetic movie HTML. No crawler, external
 movie data, production writes or paid services are needed. The suite refuses a
