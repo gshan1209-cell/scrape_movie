@@ -73,7 +73,7 @@ npm run dev
 
 | 參數 | 類型 | 說明 | 預設值 |
 |-------|------|-------------|---------|
-| `source` | string | 資料來源 (`scrape-center` 或 `atmovies`) | `scrape-center` |
+| `source` | string | 資料來源 (`scrape-center` 或 `atmovies`) | `atmovies` |
 | `page` | number | 頁碼 | `1` |
 | `category` | string | 分類篩選（僅 Scrape Center） | -- |
 | `view` | string | @movies 模式 (`new`、`now`、`next`) | `new` |
@@ -82,7 +82,7 @@ npm run dev
 
 ```
 GET /api/movies?source=atmovies&view=now
-GET /api/movies?page=2&category=剧情
+GET /api/movies?source=scrape-center&page=2&category=剧情
 ```
 
 ## 資料來源
@@ -93,3 +93,10 @@ GET /api/movies?page=2&category=剧情
 | @movies 開眼電影網 | https://www.atmovies.com.tw | new / now / next |
 
 > 本專案僅爬取公開頁面的電影基本資訊，並於每筆資料保留原始頁面連結。
+
+@movies 回應使用 30 分鐘記憶體快取；頁面時間不代表上游剛更新。
+來源失敗時顯示錯誤，API 回傳 502；沒有以快照補成即時資料。
+Scrape Center 分類掃描若有部分頁失敗，API 與畫面會揭露資料不完整。
+
+隔離合成資料的桌機／手機／鍵盤與失敗情境驗收入口見 [tests/README.md](tests/README.md)。
+通過本機驗收不代表已部署候選版，也不證明來源 TLS 或資料持久性。
