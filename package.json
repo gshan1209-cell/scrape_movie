@@ -8,7 +8,7 @@
     "build": "npm run build -w apps/web",
     "lint": "npm run lint -w apps/web",
     "typecheck": "npm run typecheck -w apps/web",
-    "test": "node --test tests/tls.test.cjs"
+    "test": "node --test tests/tls.test.cjs tests/atmovies-byte-limit.test.cjs"
   },
   "overrides": {
     "@types/react": "^19.2.17",
