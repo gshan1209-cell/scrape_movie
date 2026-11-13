@@ -80,8 +80,11 @@ test("upstream HTTP error still maps to 502, never fallback data", async () => {
   assert.match(r.body.error, /HTTP 503/);
   assert.equal(r.body.movies, undefined);
 });
-test("exact limit is permitted; valid small synthetic page remains successful", async () => {
-  const r = await simulate({ header: MAX_BYTES, chunks: [Buffer.alloc(MAX_BYTES - 19, 32), Buffer.from("<html></html>")] });
+test("exact 2 MiB streamed body is permitted", async () => {
+  const html = "<html></html>";
+  const chunks = [Buffer.alloc(MAX_BYTES - Buffer.byteLength(html), 32), Buffer.from(html)];
+  assert.equal(chunks.reduce((total, chunk) => total + chunk.length, 0), MAX_BYTES);
+  const r = await simulate({ header: MAX_BYTES, chunks });
   assert.equal(r.status, 200);
   assert.equal(r.destroyed, false);
   assert.equal(r.body.source, "atmovies");
