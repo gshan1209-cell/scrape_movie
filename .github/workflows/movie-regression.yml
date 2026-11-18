@@ -1,0 +1,35 @@
+name: Scrape Movie regression checks
+
+on:
+  pull_request:
+    paths:
+      - "apps/web/src/lib/scrapers/atmovies.ts"
+      - "tests/**"
+      - "package.json"
+      - "package-lock.json"
+      - ".github/workflows/movie-regression.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  regression:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+      - name: Install locked dependencies
+        run: npm ci
+      - name: Test TLS and oversized upstream responses
+        run: npm test
+      - name: Check TypeScript
+        run: npm run typecheck
+      - name: Build Next.js application
+        run: npm run build

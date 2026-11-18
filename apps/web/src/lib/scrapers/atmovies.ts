@@ -12,6 +12,8 @@ import {
 
 const SOURCE_ORIGIN = "https://www.atmovies.com.tw";
 const CACHE_TTL_MS = 30 * 60 * 1000;
+// Hard cap on untrusted upstream HTML bytes (including chunked transfers).
+const MAX_HTML_BYTES = 2 * 1024 * 1024;
 
 const ALLOWED_VIEWS: Record<AtMoviesView, { label: string; path: string }> = {
   new: { label: "本周新片", path: "/movie/new/" },
@@ -46,9 +48,27 @@ function fetchHtml(path: string) {
       },
       (response) => {
         const chunks: Buffer[] = [];
+        let receivedBytes = 0;
+        const contentLength = response.headers["content-length"];
+        // The header is only a fast-reject hint; streamed bytes are authoritative.
+        if (
+          typeof contentLength === "string" &&
+          /^\d+$/.test(contentLength) &&
+          Number(contentLength) > MAX_HTML_BYTES
+        ) {
+          request.destroy(new Error("@movies upstream response exceeds 2 MiB limit"));
+          return;
+        }
+        response.on("error", reject);
 
         response.on("data", (chunk) => {
-          chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+          const bytes = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
+          receivedBytes += bytes.length;
+          if (receivedBytes > MAX_HTML_BYTES) {
+            request.destroy(new Error("@movies upstream response exceeds 2 MiB limit"));
+            return;
+          }
+          chunks.push(bytes);
         });
 
         response.on("end", () => {
